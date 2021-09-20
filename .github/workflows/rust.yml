@@ -24,7 +24,7 @@ jobs:
       run: rustup default ${{ matrix.rust }}
     - name: Build
       run: cargo check
-      continue-on-error: ${{ matrix.rust == 'nightly' }}
+      continue-on-error: ${{ matrix.rust == 'nightly' || matrix.rust == 'beta' }}
   tests:
     name: Tests on 21.6.0 (gRPC)
     needs: build
