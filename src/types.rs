@@ -287,22 +287,60 @@ impl ResolvedEvent {
 /// user-defined metadata.
 #[derive(Debug, Clone)]
 pub enum StreamMetadataResult {
-    Deleted { stream: String },
-    NotFound { stream: String },
+    Deleted(String),
+    NotFound(String),
     Success(Box<VersionedMetadata>),
+}
+
+impl StreamMetadataResult {
+    pub fn is_deleted(&self) -> bool {
+        if let StreamMetadataResult::Deleted(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    pub fn is_not_found(&self) -> bool {
+        if let StreamMetadataResult::NotFound(_) = self {
+            return true;
+        }
+
+        false
+    }
+
+    pub fn is_success(&self) -> bool {
+        if let StreamMetadataResult::Success(_) = self {
+            return true;
+        }
+
+        false
+    }
 }
 
 /// Represents a stream metadata.
 #[derive(Debug, Clone)]
 pub struct VersionedMetadata {
+    pub(crate) stream: String,
+    pub(crate) version: u64,
+    pub(crate) metadata: StreamMetadata,
+}
+
+impl VersionedMetadata {
     /// Metadata's stream.
-    pub stream: String,
+    pub fn stream_name(&self) -> &str {
+        self.stream.as_str()
+    }
 
     /// Metadata's version.
-    pub version: i64,
+    pub fn version(&self) -> u64 {
+        self.version
+    }
 
     /// Metadata properties.
-    pub metadata: StreamMetadata,
+    pub fn metadata(&self) -> &StreamMetadata {
+        &self.metadata
+    }
 }
 
 /// Represents the direction of read operation (both from '$all' and a regular
@@ -1346,6 +1384,7 @@ pub type Result<A> = std::result::Result<A, Error>;
 pub enum ReadResult<A> {
     Ok(A),
     StreamNotFound(String),
+    StreamDeleted(String),
 }
 
 impl<A> ReadResult<A> {
@@ -1357,6 +1396,7 @@ impl<A> ReadResult<A> {
         match self {
             ReadResult::Ok(a) => ReadResult::Ok(f(a)),
             ReadResult::StreamNotFound(s) => ReadResult::StreamNotFound(s),
+            ReadResult::StreamDeleted(s) => ReadResult::StreamDeleted(s),
         }
     }
 
@@ -1370,6 +1410,7 @@ impl<A> ReadResult<A> {
         match self {
             ReadResult::Ok(a) => Some(a),
             ReadResult::StreamNotFound(_) => None,
+            ReadResult::StreamDeleted(_) => None,
         }
     }
 
@@ -1391,6 +1432,10 @@ impl<A> ReadResult<A> {
             ReadResult::Ok(a) => a,
             ReadResult::StreamNotFound(s) => panic!(
                 "called `ReadResult::unwrap()` on an `StreamNotFound({})` value",
+                &s
+            ),
+            ReadResult::StreamDeleted(s) => panic!(
+                "called `ReadResult::unwrap()` on an `StreamDeleted({})` value",
                 &s
             ),
         }

@@ -6,9 +6,9 @@ use crate::options::read_stream::ReadStreamOptions;
 use crate::options::subscribe_to_stream::SubscribeToStreamOptions;
 use crate::{
     commands, ConnectToPersistentSubscription, DeletePersistentSubscriptionOptions,
-    DeleteStreamOptions, Position, ReadResult, StreamMetadata, SubEvent, SubscribeToAllOptions,
-    SubscriptionRead, SubscriptionWrite, ToCount, TombstoneStreamOptions, WriteResult,
-    WrongExpectedVersion,
+    DeleteStreamOptions, Position, ReadResult, StreamMetadata, StreamMetadataResult, SubEvent,
+    SubscribeToAllOptions, SubscriptionRead, SubscriptionWrite, ToCount, TombstoneStreamOptions,
+    VersionedMetadata, WriteResult, WrongExpectedVersion,
 };
 use crate::{
     grpc::{ClientSettings, GrpcClient},
@@ -103,6 +103,7 @@ impl Client {
             }
 
             ReadResult::StreamNotFound(stream_name) => Ok(ReadResult::StreamNotFound(stream_name)),
+            ReadResult::StreamDeleted(stream_name) => Ok(ReadResult::StreamDeleted(stream_name)),
         }
     }
 
@@ -126,7 +127,7 @@ impl Client {
         &self,
         stream_name: StreamName,
         options: &ReadStreamOptions,
-    ) -> crate::Result<StreamMetadata>
+    ) -> crate::Result<StreamMetadataResult>
     where
         StreamName: AsRef<str>,
     {
@@ -135,12 +136,27 @@ impl Client {
             .await?;
 
         match result {
-            ReadResult::StreamNotFound(_) => Ok(StreamMetadata::default()),
-            ReadResult::Ok(event) => event
-                .expect("to be defined")
-                .get_original_event()
-                .as_json::<StreamMetadata>()
-                .map_err(|e| crate::Error::InternalParsingError(e.to_string())),
+            ReadResult::StreamNotFound(stream_name) => {
+                Ok(StreamMetadataResult::NotFound(stream_name))
+            }
+            ReadResult::StreamDeleted(stream_name) => {
+                Ok(StreamMetadataResult::Deleted(stream_name))
+            }
+            ReadResult::Ok(event) => {
+                let event = event.expect("to be defined");
+                let metadata = event
+                    .get_original_event()
+                    .as_json::<StreamMetadata>()
+                    .map_err(|e| crate::Error::InternalParsingError(e.to_string()))?;
+
+                let metadata = VersionedMetadata {
+                    stream: event.get_original_stream_id().to_string(),
+                    version: event.get_original_event().revision,
+                    metadata,
+                };
+
+                Ok(StreamMetadataResult::Success(Box::new(metadata)))
+            }
         }
     }
 

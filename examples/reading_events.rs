@@ -88,8 +88,10 @@ pub async fn read_from_stream_position_check(client: &Client) -> Result<()> {
 
         ReadResult::StreamNotFound(stream_name) => {
             println!("Stream not found: {}", stream_name);
+        }
 
-            return Ok(());
+        ReadResult::StreamDeleted(stream_name) => {
+            println!("Stream '{}' is deleted", stream_name);
         }
     }
     // endregion checking-for-stream-presence
