@@ -4,6 +4,7 @@ use std::cmp::Ordering;
 use std::collections::HashMap;
 use std::time::Duration;
 
+use crate::gossip::VNodeState;
 use crate::private::Sealed;
 use async_trait::async_trait;
 use bytes::Bytes;
@@ -1205,6 +1206,22 @@ impl std::fmt::Display for NodePreference {
             Random => write!(f, "Random"),
             ReadOnlyReplica => write!(f, "ReadOnlyReplica"),
         }
+    }
+}
+
+impl NodePreference {
+    pub(crate) fn match_preference(&self, state: &VNodeState) -> bool {
+        matches!(
+            (self, state),
+            (NodePreference::Leader, VNodeState::Leader)
+                | (NodePreference::Follower, VNodeState::Follower)
+                | (
+                    NodePreference::ReadOnlyReplica,
+                    VNodeState::ReadOnlyReplica
+                        | VNodeState::ReadOnlyLeaderLess
+                        | VNodeState::PreReadOnlyReplica,
+                )
+        )
     }
 }
 

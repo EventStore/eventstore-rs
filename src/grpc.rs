@@ -1160,51 +1160,33 @@ fn determine_best_node(
         .filter(|member| member.is_alive)
         .filter(|member| allowed_states(member.state));
 
-    let member_opt = match preference {
-        NodePreference::Leader => members.min_by(|a, b| {
-            if a.state == VNodeState::Leader {
-                return Ordering::Less;
-            }
-
-            if b.state == VNodeState::Leader {
-                return Ordering::Greater;
-            }
-
-            Ordering::Equal
-        }),
-
-        NodePreference::Follower => members.min_by(|a, b| {
-            if a.state == VNodeState::Follower {
-                return Ordering::Less;
-            }
-
-            if b.state == VNodeState::Follower {
-                return Ordering::Greater;
-            }
-
-            Ordering::Equal
-        }),
-
-        NodePreference::Random => members.min_by(|_, _| {
+    let member_opt = members.min_by(|a, b| {
+        if let NodePreference::Random = preference {
             if rng.next_u32() % 2 == 0 {
                 return Ordering::Greater;
             }
 
-            Ordering::Less
-        }),
+            return Ordering::Less;
+        }
 
-        NodePreference::ReadOnlyReplica => members.min_by(|a, b| {
-            if a.state == VNodeState::ReadOnlyReplica {
+        if preference.match_preference(&a.state) && preference.match_preference(&b.state) {
+            if rng.next_u32() % 2 == 0 {
                 return Ordering::Less;
-            }
-
-            if b.state == VNodeState::ReadOnlyReplica {
+            } else {
                 return Ordering::Greater;
             }
+        }
 
-            Ordering::Equal
-        }),
-    };
+        if preference.match_preference(&a.state) && !preference.match_preference(&b.state) {
+            return Ordering::Less;
+        }
+
+        if !preference.match_preference(&a.state) && preference.match_preference(&b.state) {
+            return Ordering::Greater;
+        }
+
+        Ordering::Greater
+    });
 
     member_opt.map(|member| {
         info!(
@@ -1214,4 +1196,162 @@ fn determine_best_node(
 
         member.http_end_point.clone()
     })
+}
+
+#[cfg(test)]
+mod node_selection_tests {
+    use crate::{
+        gossip::{MemberInfo, VNodeState},
+        Endpoint, NodePreference,
+    };
+    use rand::{rngs::SmallRng, RngCore, SeedableRng};
+
+    // Make sure matching preference nodes are still sorted randomly.
+
+    #[test]
+    fn test_determine_best_node_leader() {
+        generate_test_case(NodePreference::Leader);
+    }
+
+    #[test]
+    fn test_determine_best_node_follower() {
+        generate_test_case(NodePreference::Follower);
+    }
+
+    #[test]
+    fn test_determine_best_node_replica() {
+        generate_test_case(NodePreference::ReadOnlyReplica);
+    }
+
+    #[test]
+    fn test_determine_best_node_random() {
+        generate_test_case(NodePreference::Random);
+    }
+
+    fn generate_test_case(pref: NodePreference) {
+        let mut members = Vec::new();
+        let mut rng = SmallRng::from_entropy();
+
+        members.push(MemberInfo {
+            instance_id: uuid::Uuid::new_v4(),
+            time_stamp: rng.next_u32() as i64,
+            state: VNodeState::Leader,
+            is_alive: true,
+            http_end_point: Endpoint {
+                host: "localhost".to_string(),
+                port: rng.next_u32(),
+            },
+        });
+
+        members.push(MemberInfo {
+            instance_id: uuid::Uuid::new_v4(),
+            time_stamp: rng.next_u32() as i64,
+            state: VNodeState::Follower,
+            is_alive: true,
+            http_end_point: Endpoint {
+                host: "localhost".to_string(),
+                port: rng.next_u32(),
+            },
+        });
+
+        members.push(MemberInfo {
+            instance_id: uuid::Uuid::new_v4(),
+            time_stamp: rng.next_u32() as i64,
+            state: VNodeState::Follower,
+            is_alive: true,
+            http_end_point: Endpoint {
+                host: "localhost".to_string(),
+                port: rng.next_u32(),
+            },
+        });
+
+        members.push(MemberInfo {
+            instance_id: uuid::Uuid::new_v4(),
+            time_stamp: rng.next_u32() as i64,
+            state: VNodeState::ReadOnlyReplica,
+            is_alive: true,
+            http_end_point: Endpoint {
+                host: "localhost".to_string(),
+                port: rng.next_u32(),
+            },
+        });
+
+        members.push(MemberInfo {
+            instance_id: uuid::Uuid::new_v4(),
+            time_stamp: rng.next_u32() as i64,
+            state: VNodeState::ReadOnlyReplica,
+            is_alive: true,
+            http_end_point: Endpoint {
+                host: "localhost".to_string(),
+                port: rng.next_u32(),
+            },
+        });
+
+        let opt1 = super::determine_best_node(&mut rng, pref, members.as_slice());
+        let mut opt2 = super::determine_best_node(&mut rng, pref, members.as_slice());
+
+        assert!(opt1.is_some());
+        assert!(opt2.is_some());
+
+        if pref != NodePreference::Random {
+            // We make sure that the selected node matches the preference.
+            assert!(
+                members
+                    .iter()
+                    .find(|m| m.http_end_point == opt1.as_ref().unwrap().clone()
+                        && pref.match_preference(&m.state))
+                    .is_some(),
+                "Someone broke the node selection implementation!"
+            );
+        }
+
+        // In case of the leader, we make sure that we are always returning the same node.
+        if let NodePreference::Leader = pref {
+            assert_eq!(opt1, opt2);
+        } else {
+            // When not asking for a leader, we want to still introduce some randomness
+            // while still meeting the node preference.
+            if opt1 != opt2 {
+                if pref != NodePreference::Random {
+                    // We make sure that the selected node matches the preference.
+                    assert!(
+                        members
+                            .iter()
+                            .find(|m| m.http_end_point == opt2.as_ref().unwrap().clone()
+                                && pref.match_preference(&m.state))
+                            .is_some(),
+                        "Someone broke the node selection implementation!"
+                    );
+                }
+
+                return;
+            }
+
+            // It's still possible to have the same selected node two times in a row.
+            // We re-run the node selection process many times to ensure chaos is running
+            // its course.
+            for _ in 0..100 {
+                opt2 = super::determine_best_node(&mut rng, pref, members.as_slice());
+                if opt2.is_some() && opt1 != opt2 {
+                    if pref != NodePreference::Random {
+                        // We make sure that the selected node matches the preference.
+                        assert!(
+                            members
+                                .iter()
+                                .find(|m| m.http_end_point == opt2.as_ref().unwrap().clone()
+                                    && pref.match_preference(&m.state))
+                                .is_some(),
+                            "Someone broke the node selection implementation!"
+                        );
+                    }
+
+                    return;
+                }
+            }
+
+            // If after that we keep having the same selected node, it probably means
+            // the implementation is wrong.
+            panic!("Not random enough, someone broke the node selection implementation!");
+        }
+    }
 }
