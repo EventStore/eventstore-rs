@@ -147,7 +147,7 @@ impl BatchAppendClient {
             error!("[sending-end] Batch-append stream is closed: {}", e);
 
             let status = tonic::Status::cancelled("Batch-append stream has been closed");
-            return Err(crate::Error::ServerError(status));
+            return Err(crate::Error::ServerError(status.to_string()));
         }
 
         match receiver.await {
@@ -156,7 +156,7 @@ impl BatchAppendClient {
 
                 let status = tonic::Status::cancelled("Batch-append stream has been closed");
 
-                Err(crate::Error::ServerError(status))
+                Err(crate::Error::ServerError(status.to_string()))
             }
 
             Ok(result) => result,

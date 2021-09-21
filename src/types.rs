@@ -1266,13 +1266,13 @@ pub struct Endpoint {
 /// EventStoreDB command error.
 pub enum Error {
     #[error("Server-side error.")]
-    ServerError(Status),
+    ServerError(String),
     #[error("You tried to execute a command that requires a leader node on a follower node. New leader: ")]
     NotLeaderException(Endpoint),
     #[error("Connection is closed.")]
     ConnectionClosed,
     #[error("Unmapped gRPC error: {0}.")]
-    Grpc(Status),
+    Grpc(String),
     #[error("gRPC connection error: {0}")]
     GrpcConnectionError(GrpcConnectionError),
     #[error("Internal parsing error: {0}")]
@@ -1324,10 +1324,10 @@ impl Error {
             || status.code() == Code::Internal
             || status.code() == Code::DataLoss
         {
-            return Error::ServerError(status);
+            return Error::ServerError(status.to_string());
         }
 
-        Error::Grpc(status)
+        Error::Grpc(status.to_string())
     }
 }
 
@@ -1337,7 +1337,7 @@ pub enum GrpcConnectionError {
     #[error("Max discovery attempt count reached. count: {0}")]
     MaxDiscoveryAttemptReached(usize),
     #[error("Unmapped gRPC connection error: {0}.")]
-    Grpc(Status),
+    Grpc(String),
 }
 
 pub type Result<A> = std::result::Result<A, Error>;

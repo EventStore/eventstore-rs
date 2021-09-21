@@ -329,7 +329,7 @@ impl ClientSettings {
                 _ => {
                     return Err(nom::Err::Failure(nom::error::Error::new(
                         input,
-                        ErrorKind::ParseTo,
+                        ErrorKind::Fail,
                     )));
                 }
             }
@@ -369,7 +369,7 @@ impl ClientSettings {
                     } else {
                         return Err(nom::Err::Failure(nom::error::Error::new(
                             input,
-                            ErrorKind::ParseTo,
+                            ErrorKind::Fail,
                         )));
                     }
                 }
@@ -377,7 +377,7 @@ impl ClientSettings {
                 _ => {
                     return Err(nom::Err::Failure(nom::error::Error::new(
                         input,
-                        ErrorKind::ParseTo,
+                        ErrorKind::Fail,
                     )));
                 }
             }
@@ -401,7 +401,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -413,7 +413,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -425,7 +425,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -437,7 +437,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -449,7 +449,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -476,7 +476,7 @@ impl ClientSettings {
                                 _ => {
                                     return Err(nom::Err::Failure(nom::error::Error::new(
                                         values.as_slice()[1],
-                                        ErrorKind::ParseTo,
+                                        ErrorKind::Fail,
                                     )));
                                 }
                             }
@@ -503,7 +503,7 @@ impl ClientSettings {
 
                                     return Err(nom::Err::Failure(nom::error::Error::new(
                                         value,
-                                        ErrorKind::ParseTo,
+                                        ErrorKind::Fail,
                                     )));
                                 }
 
@@ -511,7 +511,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -536,7 +536,7 @@ impl ClientSettings {
 
                                     return Err(nom::Err::Failure(nom::error::Error::new(
                                         value,
-                                        ErrorKind::ParseTo,
+                                        ErrorKind::Fail,
                                     )));
                                 }
 
@@ -544,7 +544,7 @@ impl ClientSettings {
                             } else {
                                 return Err(nom::Err::Failure(nom::error::Error::new(
                                     value,
-                                    ErrorKind::ParseTo,
+                                    ErrorKind::Fail,
                                 )));
                             }
                         }
@@ -557,7 +557,7 @@ impl ClientSettings {
                 } else {
                     return Err(nom::Err::Failure(nom::error::Error::new(
                         param,
-                        ErrorKind::ParseTo,
+                        ErrorKind::Fail,
                     )));
                 }
             }
@@ -992,8 +992,8 @@ pub(crate) async fn handle_error<A>(
             "NotLeaderException found. Start reconnection process on: {:?}",
             leader
         );
-    } else if let crate::Error::Grpc(ref status) = err {
-        debug!("Map: {:?}", status.metadata());
+    } else if let crate::Error::Grpc(ref e) = err {
+        debug!("Operation unexpected error: {}", e);
     }
 
     Err(err)

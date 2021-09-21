@@ -567,7 +567,7 @@ pub async fn batch_append<'a>(
                     let message = code.message;
                     let code = tonic::Code::from(code.code);
                     let status = tonic::Status::new(code, message);
-                    let err = crate::Error::Grpc(status);
+                    let err = crate::Error::Grpc(status.to_string());
 
                     Err(err)
                 }
