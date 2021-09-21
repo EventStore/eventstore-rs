@@ -682,7 +682,19 @@ pub async fn read_stream<'a, S: AsRef<str>>(
     connection
         .execute(|channel| async {
             let mut client = StreamsClient::new(channel.channel.clone());
-            let mut stream = client.read(req).await?.into_inner();
+            let result = client.read(req).await;
+
+            if let Err(status) = result.as_ref() {
+                if let Some("stream-deleted") = status.metadata().get("exception").and_then(|e| e.to_str().ok()) {
+                    if let Some(stream_name) = status.metadata().get("stream-name").and_then(|e| e.to_str().ok()) {
+                        return Ok(ReadResult::StreamDeleted(stream_name.to_string()));
+                    }
+
+                    warn!("stream-deleted exception didn't have a stream-name property, falling back to returning a generic gRPC error");
+                }
+            }
+
+            let mut stream = result?.into_inner();
 
             if let Some(resp) = stream.try_next().await? {
                 match resp.content.as_ref().unwrap() {

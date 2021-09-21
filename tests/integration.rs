@@ -7,8 +7,8 @@ mod images;
 
 use eventstore::{
     Acl, Client, ClientSettings, EventData, PersistentSubscriptionOptions,
-    PersistentSubscriptionSettings, ProjectionClient, Single, StreamAclBuilder, StreamMetadata,
-    StreamMetadataBuilder,
+    PersistentSubscriptionSettings, ProjectionClient, ReadResult, Single, StreamAclBuilder,
+    StreamMetadataBuilder, StreamMetadataResult,
 };
 use futures::channel::oneshot;
 use futures::stream::TryStreamExt;
@@ -116,7 +116,11 @@ async fn test_metadata(client: &Client) -> Result<(), Box<dyn Error>> {
         .get_stream_metadata(stream_id.as_str(), &Default::default())
         .await?;
 
-    assert_eq!(expected, actual);
+    assert!(actual.is_success());
+
+    if let StreamMetadataResult::Success(actual) = actual {
+        assert_eq!(&expected, actual.metadata());
+    }
 
     Ok(())
 }
@@ -129,13 +133,11 @@ async fn test_metadata_not_exist(client: &Client) -> Result<(), Box<dyn Error>> 
         .append_to_stream(stream_id.as_str(), &Default::default(), events)
         .await?;
 
-    let expected = StreamMetadata::default();
-
     let actual = client
         .get_stream_metadata(stream_id.as_str(), &Default::default())
         .await?;
 
-    assert_eq!(expected, actual);
+    assert!(actual.is_not_found());
 
     Ok(())
 }
@@ -191,9 +193,12 @@ async fn test_tombstone_stream(client: &Client) -> Result<(), Box<dyn Error>> {
 
     debug!("Tombstone stream [{}] result: {:?}", stream_id, result);
 
-    let result = client.read_stream(stream_id, &Default::default(), 1).await;
+    let result = client
+        .read_stream(stream_id.as_str(), &Default::default(), 1)
+        .await?;
 
-    if let Err(eventstore::Error::Grpc(_)) = result {
+    if let ReadResult::StreamDeleted(stream_name) = result {
+        assert_eq!(stream_id, stream_name);
         Ok(())
     } else {
         panic!("Expected stream deleted error");
