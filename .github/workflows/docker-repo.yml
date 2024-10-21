@@ -41,7 +41,12 @@ jobs:
               echo "docker_repo=eventstore-ee" >> $GITHUB_OUTPUT
               echo "docker_container=eventstoredb-commercial" >> $GITHUB_OUTPUT
             ;;
-
+          
+            "preview")
+              echo "docker_repo=eventstore-preview" >> $GITHUB_OUTPUT
+              echo "docker_container=eventstoredb-ee" >> $GITHUB_OUTPUT
+            ;;
+          
             *)
               echo "docker_repo=eventstore-ce" >> $GITHUB_OUTPUT
               echo "docker_container=eventstoredb-ce" >> $GITHUB_OUTPUT
