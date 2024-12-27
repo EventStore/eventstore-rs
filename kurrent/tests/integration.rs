@@ -6,8 +6,8 @@ mod common;
 mod images;
 
 use crate::common::{fresh_stream_id, generate_events};
-use kurrent::{Client, ClientSettings};
 use futures::channel::oneshot;
+use kurrent::{Client, ClientSettings};
 use std::time::Duration;
 use testcontainers::clients::Cli;
 use testcontainers::core::RunnableImage;

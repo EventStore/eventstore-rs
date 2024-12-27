@@ -1164,7 +1164,10 @@ impl GrpcClient {
 
 pub(crate) fn handle_error(sender: &UnboundedSender<Msg>, connection_id: Uuid, err: &crate::Error) {
     if let crate::Error::ServerError(ref status) = err {
-        error!("Current selected KurrentDB node gone unavailable. Starting node selection process: {}", status);
+        error!(
+            "Current selected KurrentDB node gone unavailable. Starting node selection process: {}",
+            status
+        );
 
         let _ = sender.send(Msg::CreateChannel(connection_id, None));
     } else if let crate::Error::NotLeaderException(ref leader) = err {

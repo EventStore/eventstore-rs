@@ -1,10 +1,10 @@
 use crate::common::{fresh_stream_id, generate_events};
 use chrono::{Datelike, Utc};
+use futures::channel::oneshot;
 use kurrent::{
     Acl, Client, ReadEvent, StreamAclBuilder, StreamMetadataBuilder, StreamMetadataResult,
     StreamName, StreamPosition, SubscriptionEvent,
 };
-use futures::channel::oneshot;
 use std::collections::HashMap;
 use std::time::Duration;
 
@@ -258,8 +258,8 @@ async fn test_subscription(client: &Client) -> eyre::Result<()> {
         .append_to_stream(stream_id.as_str(), &Default::default(), events_before)
         .await?;
 
-    let options = kurrent::SubscribeToStreamOptions::default()
-        .start_from(kurrent::StreamPosition::Start);
+    let options =
+        kurrent::SubscribeToStreamOptions::default().start_from(kurrent::StreamPosition::Start);
 
     let mut sub = client
         .subscribe_to_stream(stream_id.as_str(), &options)
@@ -321,8 +321,8 @@ async fn test_subscription_caughtup(client: &Client) -> kurrent::Result<()> {
         .append_to_stream(stream_id.clone(), &Default::default(), events)
         .await?;
 
-    let options = kurrent::SubscribeToStreamOptions::default()
-        .start_from(kurrent::StreamPosition::Start);
+    let options =
+        kurrent::SubscribeToStreamOptions::default().start_from(kurrent::StreamPosition::Start);
 
     let mut sub = client
         .subscribe_to_stream(stream_id.clone(), &options)
@@ -382,11 +382,7 @@ async fn test_batch_append(client: &Client) -> kurrent::Result<()> {
         let stream_id = fresh_stream_id("batch-append");
         let events = generate_events("batch-append-type", 3);
         let _ = batch_client
-            .append_to_stream(
-                stream_id.as_str(),
-                kurrent::ExpectedRevision::Any,
-                events,
-            )
+            .append_to_stream(stream_id.as_str(), kurrent::ExpectedRevision::Any, events)
             .await?;
         let options = kurrent::ReadStreamOptions::default()
             .forwards()
